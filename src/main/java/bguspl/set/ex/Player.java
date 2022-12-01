@@ -2,6 +2,9 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This class manages the players' threads and data
  *
@@ -51,6 +54,17 @@ public class Player implements Runnable {
     private int score;
 
     /**
+     * the tokens that the player has collected.
+     */
+    private List<Integer> tokens;
+
+    /**
+     * the dealer object
+     */
+    private Dealer dealer;
+     
+
+    /**
      * The class constructor.
      *
      * @param env    - the environment object.
@@ -64,6 +78,8 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
+        this.dealer = dealer;
+        tokens = new ArrayList<Integer>();
     }
 
     /**
@@ -114,6 +130,34 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
+        if (tokens.contains(slot)){
+            table.removeToken(id, slot);
+            tokens.remove(slot);
+        }
+        else{
+            table.placeToken(id, slot);
+            tokens.add(slot);
+            if (tokens.size() == 3){
+                int[] cards = new int[3];
+                int index = 0;
+                for(int tempSlot : tokens){
+                    cards[index] = table.getcardBySlot(tempSlot);
+                    index ++;
+                }
+
+                boolean isSet = env.util.testSet(cards);
+
+                if(isSet){
+                    point();
+                }
+                else{
+                    penalty();
+                }
+                dealer.terminate();
+            }
+        }
+        
+
         // TODO implement
     }
 
@@ -124,20 +168,46 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        // TODO implement
+        try{
+            Thread.sleep(env.config.pointFreezeMillis);
+        }
+        catch(InterruptedException e){
+            System.out.println("Error: " + e);
+        }
+
+        env.ui.setFreeze(id, env.config.pointFreezeMillis);
+
+
+        for (int i : tokens){
+            table.removeToken(id, i);
+            table.removeCard(i);
+        }
+        tokens.clear();
+        dealer.terminate();
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
+
     }
 
     /**
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        // TODO implement
+        try{
+            Thread.sleep(env.config.penaltyFreezeMillis);
+        }
+        catch(InterruptedException e){
+            System.out.println("Error: " + e);
+        }
+
+        env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
+        //change the clock countdown
     }
 
     public int getScore() {
         return score;
     }
+
+
 }

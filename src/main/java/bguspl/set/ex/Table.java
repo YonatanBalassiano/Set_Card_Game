@@ -106,14 +106,14 @@ public class Table {
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
-
-        // remove card from slot and slot from card
-        int tempCard =slotToCard[slot];
-        slotToCard[slot] = null;
-        cardToSlot[tempCard] = null;
-
-        env.ui.removeCard(slot);
-
+        
+        if(slotToCard[slot]!=null){
+            // remove card from slot and slot from card
+            int tempCard =slotToCard[slot];
+            slotToCard[slot] = null;
+            cardToSlot[tempCard] = null;
+            env.ui.removeCard(slot);
+        }
     }
 
     /**
@@ -143,5 +143,9 @@ public class Table {
 
         return true;
         
+    }
+
+    public int getcardBySlot(int slot){
+        return slotToCard[slot];
     }
 }
