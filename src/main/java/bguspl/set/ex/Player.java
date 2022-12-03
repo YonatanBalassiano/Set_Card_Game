@@ -108,12 +108,13 @@ public class Player implements Runnable {
             } catch (InterruptedException ignored) {}
                 System.out.println(tokens.size());
                 if (tokens.size() == 3){
-                        int[] cards = new int[3];
+                        int[] cards = new int[tokens.size()+1];
                         int index = 0;
                         for(int tempSlot : tokens){
-                            cards[index] = table.getcardBySlot(tempSlot);
+                            cards[index] = tempSlot;
                             index ++;
                         }
+                        cards[3] = id;
                         System.out.println(Thread.currentThread().getName());
                         boolean isSet = dealer.isSet(cards, playerThread);
                         if(isSet){
@@ -155,7 +156,7 @@ public class Player implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {
-        // TODO implement
+        terminate = true;
     }
 
     /**
@@ -203,9 +204,10 @@ public class Player implements Runnable {
         tokens.clear();
         dealer.ClockReset();
 
-
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         env.ui.setScore(id, ++score);
+        dealer.unlockIsSet();
+
     }
 
     /**
@@ -213,6 +215,7 @@ public class Player implements Runnable {
      */
     public void penalty() {
         System.out.println(Thread.currentThread().getName() + "penalty");
+        dealer.unlockIsSet();
         dealer.setFreeze(env.config.penaltyFreezeMillis, this);
         try{
             playerThread.sleep(env.config.penaltyFreezeMillis);

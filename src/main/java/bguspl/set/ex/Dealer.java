@@ -3,8 +3,10 @@ package bguspl.set.ex;
 import bguspl.set.Env;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -43,11 +45,22 @@ public class Dealer implements Runnable {
      */
     private long reshuffleTime = Long.MAX_VALUE;
 
+    /**
+     * queue of isSet calls
+     */
+    private Queue<Integer> isSetQueue;
+
+    /**
+     * isSet queue lock
+     */
+    private Object isSetQueueLock = new Object();
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
+        isSetQueue = new LinkedList<Integer>();
 
     }
 
@@ -78,7 +91,6 @@ public class Dealer implements Runnable {
             sleepUntilWokenOrTimeout();
             boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
             updateTimerDisplay(warning);
-            removeCardsFromTable();
             placeCardsOnTable();
         }
         System.out.printf("Info: Thread %s play.%n", Thread.currentThread().getName());
@@ -87,7 +99,10 @@ public class Dealer implements Runnable {
     /**
      * Called when the game should be terminated due to an external event.
      */
-    public void terminate() {     
+    public void terminate() {  
+        for(Player player : players){
+            player.terminate();
+        }
         terminate = true;
     }
 
@@ -98,13 +113,6 @@ public class Dealer implements Runnable {
      */
     private boolean shouldFinish() {
         return terminate || env.util.findSets(deck, 1).size() == 0;
-    }
-
-    /**
-     * Checks if any cards should be removed from the table and returns them to the deck.
-     */
-    private void removeCardsFromTable() {
-        //NEED TO IMPLEMENT; SEE PLAYER.JAVA 
     }
 
     /**
@@ -161,7 +169,28 @@ public class Dealer implements Runnable {
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        // TODO implement
+        int maxScore = 0;
+        int maxSum = 0; 
+        //calculate the max score and how many players with that score
+        for(Player player : players){
+            if(player.getScore()>maxScore){
+                maxScore = player.getScore();
+                maxSum =1;
+            }
+            if(player.getScore()==maxScore){
+                maxSum++;
+            }
+        }
+
+        //convert to int
+        int[] temp = new int[maxSum];
+        for(Player player : players){
+            if(player.getScore()==maxScore){
+                temp[--maxSum] = player.id;
+            }
+        }
+        
+        env.ui.announceWinner(temp);
     }
 
     /**
@@ -178,8 +207,25 @@ public class Dealer implements Runnable {
         reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
     }
 
-    synchronized protected boolean isSet(int[] cards, Thread playerThread){
-        return env.util.testSet(cards);
+    protected boolean isSet(int[] cards, Thread playerThread){
+        synchronized(isSetQueueLock){
+            isSetQueue.add(cards[3]);
+        } 
+        while(isSetQueue.peek()!= cards[3]){
+            try{wait();}catch(Exception e){}
+        }
+        int[] tempCards = new int[cards.length-1];
+        for(int i = 0; i<cards.length-1;i++){
+            tempCards[i] = table.getcardBySlot(cards[i]);
+        }
+        return env.util.testSet(tempCards);
+    }
+
+    protected void unlockIsSet(){
+        synchronized(isSetQueueLock){
+            isSetQueue.remove();
+        }
+
     }
 
     public void setFreeze(long millis, Player player){
