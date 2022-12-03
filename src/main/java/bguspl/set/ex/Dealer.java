@@ -4,8 +4,13 @@ import bguspl.set.Env;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import javax.management.Query;
+import javax.sound.midi.MidiChannel;
+import javax.swing.plaf.synth.SynthButtonUI;
 
 /**
  * This class manages the dealer's threads and data
@@ -43,6 +48,7 @@ public class Dealer implements Runnable {
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
+
     }
 
     /**
@@ -51,11 +57,11 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
+        startPlayersThreads();        
         while (!shouldFinish()) {
-            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+            ClockReset();
             Collections.shuffle(deck);
             placeCardsOnTable();
-            terminate = false;
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
@@ -75,13 +81,14 @@ public class Dealer implements Runnable {
             removeCardsFromTable();
             placeCardsOnTable();
         }
+        System.out.printf("Info: Thread %s play.%n", Thread.currentThread().getName());
     }
 
     /**
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {     
-        
+        terminate = true;
     }
 
     /**
@@ -104,12 +111,13 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        List<Integer> temp = deck.subList(0, 12);
-        int index = 0;
-        for (int i : temp){
-            if(table.slotToCard[index]==null){
-                table.placeCard(i,index);
-                index ++;
+        
+        for(int i = 0; i<12;i++){
+            if(table.slotToCard[i]==null){
+                if(deck.size()!=0){
+                    table.placeCard(deck.get(0),i);
+                    deck.remove(deck.get(0));
+                }
             }
         }
     }
@@ -137,8 +145,15 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        for(int i = 0; i<12;i++){
-            table.removeCard(i);
+        for(int i = 0; i<env.config.tableSize;i++){
+            if(table.slotToCard[i]!=null){
+                deck.add(table.slotToCard[i]);
+                table.removeCard(i);
+            }
+        }
+        for(Player player : players){
+            player.resetTokens();
+            table.removeAllTokens(player.id);
         }
     }
 
@@ -149,8 +164,31 @@ public class Dealer implements Runnable {
         // TODO implement
     }
 
+    /**
+     * Start the threads of the players.
+     */
+    private void startPlayersThreads() {
+        for (Player player : players) {
+            new Thread(player,"Player"+player.id).start();
+        }
+    }
 
+    
+    protected void ClockReset(){
+        reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+    }
 
+    synchronized protected boolean isSet(int[] cards, Thread playerThread){
+        return env.util.testSet(cards);
+    }
+
+    public void setFreeze(long millis, Player player){
+        player.lock = true;
+        long freezeTimeOut = System.currentTimeMillis() + millis;
+        while(System.currentTimeMillis()<=freezeTimeOut)
+        env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
+        player.lock=false;
+    }
 
 
 

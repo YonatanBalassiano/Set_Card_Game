@@ -29,6 +29,8 @@ public class Table {
      */
     protected final Integer[] cardToSlot; // slot per card (if any)
 
+    Object lockSlotsCards = new Object();
+
     /**
      * Constructor for testing.
      *
@@ -91,11 +93,12 @@ public class Table {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
         
-        // place card in slot and vice versa
-        cardToSlot[card] = slot;
-        slotToCard[slot] = card;
-
-        env.ui.placeCard(card, slot);
+        synchronized (lockSlotsCards) {
+            // place card in slot and vice versa
+            slotToCard[slot] = card;
+            cardToSlot[card] = slot;
+            env.ui.placeCard(card, slot);
+        }
     }
 
     /**
@@ -107,11 +110,11 @@ public class Table {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
         
-        if(slotToCard[slot]!=null){
-            // remove card from slot and slot from card
-            int tempCard =slotToCard[slot];
+        synchronized (lockSlotsCards) {
+            // remove card from slot and vice versa
+            int card = slotToCard[slot];
             slotToCard[slot] = null;
-            cardToSlot[tempCard] = null;
+            cardToSlot[card] = null;
             env.ui.removeCard(slot);
         }
     }
@@ -146,6 +149,21 @@ public class Table {
     }
 
     public int getcardBySlot(int slot){
-        return slotToCard[slot];
+        synchronized (lockSlotsCards) {
+            return slotToCard[slot];
+        }
+    }
+
+    protected void removeAllTokens(int player){
+        for(int i = 0; i < env.config.tableSize; i++){
+            removeToken(player, i);
+        }
+    }
+
+    protected void placeTokens(List<Integer> tokens, int player){
+        removeAllTokens(player);
+        for(int i = 0; i < tokens.size(); i++){
+            placeToken(player, tokens.get(i));
+        }
     }
 }
