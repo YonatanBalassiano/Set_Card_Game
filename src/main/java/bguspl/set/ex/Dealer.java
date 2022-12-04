@@ -202,11 +202,19 @@ public class Dealer implements Runnable {
         }
     }
 
-    
+    /**
+     * Reset the timer.
+     */
     protected void ClockReset(){
         reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
     }
 
+    /**
+     * Check if the given cards form a set.
+     *
+     * @param cards the cards to check.
+     * @return true iff the cards form a set.
+     */
     protected boolean isSet(int[] cards, Thread playerThread){
         synchronized(isSetQueueLock){
             isSetQueue.add(cards[3]);
@@ -221,6 +229,9 @@ public class Dealer implements Runnable {
         return env.util.testSet(tempCards);
     }
 
+    /**
+     * synchronized method for isSet tests (fairly)
+     */
     protected void unlockIsSet(){
         synchronized(isSetQueueLock){
             isSetQueue.remove();
@@ -229,6 +240,10 @@ public class Dealer implements Runnable {
 
     }
 
+    /**
+     * set a freeze to a player
+     * lock the player prom place and remove tokens on the table
+     */
     public void setFreeze(long millis, Player player){
         player.lock = true;
         long freezeTimeOut = System.currentTimeMillis() + millis;
@@ -236,11 +251,10 @@ public class Dealer implements Runnable {
         env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
         player.lock=false;
     }
-
-
-
-
 }
 
 
-//some text here
+// ---------- T.D.L -----------
+// - when the players set is TRUE - remove cards from deck (we dont do this)
+// - syncronize the remove card method (with syncronzied(deck))
+
