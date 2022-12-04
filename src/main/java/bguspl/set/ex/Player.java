@@ -42,7 +42,8 @@ public class Player implements Runnable {
     protected Thread playerThread;
 
     /**
-     * The thread of the AI (computer) player (an additional thread used to generate key presses).
+     * The thread of the AI (computer) player (an additional thread used to generate
+     * key presses).
      */
     private Thread aiThread;
 
@@ -65,7 +66,7 @@ public class Player implements Runnable {
      * the tokens that the player has collected.
      */
     private volatile List<Integer> tokens;
-    public volatile boolean lock= false;
+    public volatile boolean lock = false;
 
     /**
      * the dealer object
@@ -73,7 +74,8 @@ public class Player implements Runnable {
     private Dealer dealer;
 
     private Object lockKeyPress = new Object();
-     
+    private AtomicBoolean keyLock = new AtomicBoolean(false);
+
 
     /**
      * The class constructor.
@@ -82,7 +84,8 @@ public class Player implements Runnable {
      * @param dealer - the dealer object.
      * @param table  - the table object.
      * @param id     - the id of the player.
-     * @param human  - true iff the player is a human player (i.e. input is provided manually, via the keyboard).
+     * @param human  - true iff the player is a human player (i.e. input is provided
+     *               manually, via the keyboard).
      */
     public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
         this.env = env;
@@ -103,9 +106,13 @@ public class Player implements Runnable {
         if (!human) createArtificialIntelligence();
         
         while (!terminate) {
-            try {
-                synchronized (this) { wait(); }
-            } catch (InterruptedException ignored) {}
+            while(keyLock.get() == false){
+                try {
+                    Thread.sleep(env.config.tableDelayMillis);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
                 System.out.println(tokens.size());
                 if (tokens.size() == 3){
                         int[] cards = new int[tokens.size()+1];
@@ -123,18 +130,18 @@ public class Player implements Runnable {
                         else{
                             penalty();
                         }
-                
-        }
-
-
-        }
+                }
+                keyLock.set(false);
+            }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
     }
 
     /**
-     * Creates an additional thread for an AI (computer) player. The main loop of this thread repeatedly generates
-     * key presses. If the queue of key presses is full, the thread waits until it is not full.
+     * Creates an additional thread for an AI (computer) player. The main loop of
+     * this thread repeatedly generates
+     * key presses. If the queue of key presses is full, the thread waits until it
+     * is not full.
      */
     private void createArtificialIntelligence() {
         // note: this is a very very smart AI (!)
@@ -142,9 +149,12 @@ public class Player implements Runnable {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
                 try {
-                    synchronized (this) { wait(); }
-                } catch (InterruptedException ignored) {}
-                int slot =  (int) ((Math.random() * (12 - 0)));
+                    synchronized (this) {
+                        wait();
+                    }
+                } catch (InterruptedException ignored) {
+                }
+                int slot = (int) ((Math.random() * (12 - 0)));
                 keyPressed(slot);
             }
             System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
@@ -165,16 +175,15 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        if(!lock){
-            if (tokens.contains(slot)){
-                if(table.removeToken(id, slot))
+        if (!lock) {
+            if (tokens.contains(slot)) {
+                if (table.removeToken(id, slot))
                     tokens.remove(tokens.indexOf(slot));
-            }
-            else{
-                if (tokens.size()<3){
+            } else {
+                if (tokens.size() < 3) {
                     tokens.add(slot);
                     table.placeToken(id, slot);
-                    playerThread.interrupt();
+                    keyLock.set(true);
                 }
             }
         }
@@ -189,30 +198,19 @@ public class Player implements Runnable {
     public void point() {
         System.out.println(Thread.currentThread().getName() + "point");
 
-        dealer.setFreeze(env.config.pointFreezeMillis, this);
-        try{
-            playerThread.sleep(env.config.pointFreezeMillis);
-        }
-        catch(InterruptedException e){
-            System.out.println("Error: " + e);
-        }
-        
-        //--------------------TODO--------------------
-        // move the remove token and remove card befor the sleep 
-
-        for (int i : tokens){
+        for (int i : tokens) {
             table.removeToken(id, i);
             table.removeCard(i);
+            dealer.removeTokensToOtherPlayers(i, id);
         }
+        env.ui.setScore(id, ++score);
+        dealer.setFreeze(env.config.pointFreezeMillis, this);
 
-        
         tokens.clear();
         dealer.ClockReset();
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
-        env.ui.setScore(id, ++score);
         dealer.unlockIsSet();
-
     }
 
     /**
@@ -222,23 +220,32 @@ public class Player implements Runnable {
         System.out.println(Thread.currentThread().getName() + "penalty");
         dealer.unlockIsSet();
         dealer.setFreeze(env.config.penaltyFreezeMillis, this);
-        try{
-            playerThread.sleep(env.config.penaltyFreezeMillis);
-        }
-        catch(InterruptedException e){
-            System.out.println("Error: " + e);
-        }
     }
 
+    /**
+     * Returns the current score of the player.
+     */
     public int getScore() {
         return score;
     }
 
-    public void resetTokens(){
+    /**
+     * This method is called when the set has been done.
+     */
+    public void resetTokens() {
         tokens.clear();
     }
 
+    /**
+     * This method is called when a key is released.
+     * 
+     * @param slot
+     */
+    public void removeToken(int slot) {
+        int index = tokens.indexOf(slot);
+        if (index != -1) {
+            tokens.remove(index);
+        }
+    }
 
 }
-
-

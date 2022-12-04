@@ -46,6 +46,11 @@ public class Dealer implements Runnable {
     private long reshuffleTime = Long.MAX_VALUE;
 
     /**
+     * check if there are no more sets available
+     */
+    boolean shouldFinish = false;
+
+    /**
      * queue of isSet calls
      */
     private Queue<Integer> isSetQueue;
@@ -87,7 +92,7 @@ public class Dealer implements Runnable {
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
     private void timerLoop() {
-        while (!terminate && System.currentTimeMillis() < reshuffleTime) {
+        while (!terminate && System.currentTimeMillis() < reshuffleTime && !shouldFinish) {
             sleepUntilWokenOrTimeout();
             boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
             updateTimerDisplay(warning);
@@ -119,13 +124,15 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        
-        for(int i = 0; i<12;i++){
+        List<Integer> tableSlots = IntStream.rangeClosed(0, env.config.tableSize-1).boxed().collect(Collectors.toList());  
+        Collections.shuffle(tableSlots);
+        for(int i : tableSlots){
             if(table.slotToCard[i]==null){
                 if(deck.size()!=0){
                     table.placeCard(deck.get(0),i);
                     deck.remove(deck.get(0));
                 }
+                try{Thread.sleep(env.config.tableDelayMillis);}catch(Exception e){}
             }
         }
     }
@@ -172,25 +179,37 @@ public class Dealer implements Runnable {
         int maxScore = 0;
         int maxSum = 0; 
         //calculate the max score and how many players with that score
-        for(Player player : players){
-            if(player.getScore()>maxScore){
-                maxScore = player.getScore();
-                maxSum =1;
-            }
-            if(player.getScore()==maxScore){
-                maxSum++;
-            }
-        }
+        // for(Player player : players){
+        //     if(player.getScore()>maxScore){
+        //         maxScore = player.getScore();
+        //         maxSum =1;
+        //     }
+        //     if(player.getScore()==maxScore){
+        //         maxSum++;
+        //     }
+        // }
 
-        //convert to int
-        int[] temp = new int[maxSum];
-        for(Player player : players){
-            if(player.getScore()==maxScore){
-                temp[--maxSum] = player.id;
-            }
-        }
+        // //convert to int
+        // int[] temp = new int[maxSum];
+        // for(Player player : players){
+        //     if(player.getScore()==maxScore){
+        //         temp[--maxSum] = player.id;
+        //     }
+        // }
+
         
-        env.ui.announceWinner(temp);
+        if(players[0].getScore()==players[1].getScore()){
+            int[] arr = {players[0].id,players[1].id};
+            env.ui.announceWinner(arr);
+        }
+        else if(players[0].getScore()>players[1].getScore()){
+            int[] arr = {players[0].id};
+            env.ui.announceWinner(arr);
+        }
+        else{
+            int[] arr = {players[1].id};
+            env.ui.announceWinner(arr);
+        }
     }
 
     /**
@@ -226,36 +245,49 @@ public class Dealer implements Runnable {
         for(int i = 0; i<cards.length-1;i++){
             tempCards[i] = table.getcardBySlot(cards[i]);
         }
-        return env.util.testSet(tempCards);
+        boolean isSet = env.util.testSet(tempCards);
+        if(isSet){shouldFinish =shouldFinish();}
+        return isSet;
     }
 
     /**
      * synchronized method for isSet tests (fairly)
+     * 
      */
     protected void unlockIsSet(){
         synchronized(isSetQueueLock){
             isSetQueue.remove();
             isSetQueueLock.notifyAll();
         }
-
     }
 
     /**
      * set a freeze to a player
      * lock the player prom place and remove tokens on the table
+     * @param player  the player we freeze
+     * @param millis the time we freeze the player
      */
     public void setFreeze(long millis, Player player){
         player.lock = true;
         long freezeTimeOut = System.currentTimeMillis() + millis;
-        while(System.currentTimeMillis()<=freezeTimeOut)
+        while(System.currentTimeMillis()<=freezeTimeOut){
+            env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
+            try{player.playerThread.sleep(env.config.tableDelayMillis);}
+            catch(Exception e){}
+        }
         env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
         player.lock=false;
     }
+
+    public void removeTokensToOtherPlayers(int slot, int id){
+        for (Player player : players){
+            if(player.id!=id){
+                table.removeToken(player.id,slot);
+                player.removeToken(slot);
+            }
+                
+        }
+    }
+
 }
-
-
-// ---------- T.D.L -----------
-// - when the players set is TRUE - remove cards from deck (we dont do this)
-// - syncronize the remove card method (with syncronzied(deck))
-// - player.point - replace the cards only after sleep becouse in the same function.
 
