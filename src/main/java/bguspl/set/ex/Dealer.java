@@ -257,4 +257,5 @@ public class Dealer implements Runnable {
 // ---------- T.D.L -----------
 // - when the players set is TRUE - remove cards from deck (we dont do this)
 // - syncronize the remove card method (with syncronzied(deck))
+// - player.point - replace the cards only after sleep becouse in the same function.
 

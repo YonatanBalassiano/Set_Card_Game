@@ -196,11 +196,16 @@ public class Player implements Runnable {
         catch(InterruptedException e){
             System.out.println("Error: " + e);
         }
+        
+        //--------------------TODO--------------------
+        // move the remove token and remove card befor the sleep 
 
         for (int i : tokens){
             table.removeToken(id, i);
             table.removeCard(i);
         }
+
+        
         tokens.clear();
         dealer.ClockReset();
 
