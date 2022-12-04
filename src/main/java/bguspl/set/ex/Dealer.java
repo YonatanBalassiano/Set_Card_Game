@@ -212,7 +212,7 @@ public class Dealer implements Runnable {
             isSetQueue.add(cards[3]);
         } 
         while(isSetQueue.peek()!= cards[3]){
-            try{wait();}catch(Exception e){}
+            try{isSetQueueLock.wait();}catch(Exception e){}
         }
         int[] tempCards = new int[cards.length-1];
         for(int i = 0; i<cards.length-1;i++){
@@ -224,6 +224,7 @@ public class Dealer implements Runnable {
     protected void unlockIsSet(){
         synchronized(isSetQueueLock){
             isSetQueue.remove();
+            isSetQueueLock.notifyAll();
         }
 
     }
