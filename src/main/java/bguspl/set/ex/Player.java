@@ -65,8 +65,10 @@ public class Player implements Runnable {
     /**
      * the tokens that the player has collected.
      */
-    private volatile List<Integer> tokens;
-    public volatile boolean lock = false;
+    // private volatile List<Integer> tokens;
+    public AtomicBoolean peneltyLock = new AtomicBoolean(false);
+    public AtomicBoolean tableLock = new AtomicBoolean(false);
+
 
     /**
      * the dealer object
@@ -92,7 +94,7 @@ public class Player implements Runnable {
         this.id = id;
         this.human = human;
         this.dealer = dealer;
-        tokens = new LinkedList<Integer>();
+        // tokens = new LinkedList<Integer>();
     }
 
     /**
@@ -112,11 +114,10 @@ public class Player implements Runnable {
                     e.printStackTrace();
                 }
             }
-                System.out.println(tokens.size());
-                if (tokens.size() == 3){
-                        int[] cards = new int[tokens.size()+1];
+                if (table.getTokenSize(id) == 3){
+                        int[] cards = new int[4];
                         int index = 0;
-                        for(int tempSlot : tokens){
+                        for(int tempSlot : table.getTokens(id)){
                             cards[index] = tempSlot;
                             index ++;
                         }
@@ -147,8 +148,12 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
-                int slot = (int) ((Math.random() * (12 - 0)));
-                keyPressed(slot);
+                if(tableLock.get() == false){
+                    int slot = (int) ((Math.random() * (12 - 0)));
+                    keyPressed(slot);
+                    try{Thread.sleep(env.config.tableDelayMillis);}
+                    catch (InterruptedException e) {e.printStackTrace();}
+                }
             }
             System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
         }, "computer-" + id);
@@ -168,13 +173,11 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        if (!lock) {
-            if (tokens.contains(slot)) {
-                if (table.removeToken(id, slot))
-                    tokens.remove(tokens.indexOf(slot));
+        if (peneltyLock.get() == false) {
+            if (table.isToken(id, slot)){
+                table.removeToken(id, slot);
             } else {
-                if (tokens.size() < 3 && table.getcardBySlot(slot)!= -1) {
-                    tokens.add(slot);
+                if (table.getTokenSize(id) < 3 && table.getcardBySlot(slot)!= -1) {
                     table.placeToken(id, slot);
                     keyLock.set(true);
                 }
@@ -191,15 +194,10 @@ public class Player implements Runnable {
     public void point() {
         System.out.println(Thread.currentThread().getName() + "point");
 
-        for (int i : tokens) {
-            table.removeToken(id, i);
-            table.removeCard(i);
-            dealer.removeTokensToOtherPlayers(i, id);
-        }
+        table.pointToPlayer(id);
+
         env.ui.setScore(id, ++score);
         dealer.setFreeze(env.config.pointFreezeMillis, this);
-
-        tokens.clear();
         dealer.ClockReset();
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
@@ -222,23 +220,6 @@ public class Player implements Runnable {
         return score;
     }
 
-    /**
-     * This method is called when the set has been done.
-     */
-    public void resetTokens() {
-        tokens.clear();
-    }
 
-    /**
-     * This method is called when a key is released.
-     * 
-     * @param slot
-     */
-    public void removeToken(int slot) {
-        int index = tokens.indexOf(slot);
-        if (index != -1) {
-            tokens.remove(index);
-        }
-    }
 
 }

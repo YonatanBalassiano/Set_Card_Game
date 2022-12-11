@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.LinkedList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -29,7 +30,11 @@ public class Table {
      */
     protected final Integer[] cardToSlot; // slot per card (if any)
 
+    protected final List<List<Integer>> tokens;
+
     Object lockSlotsCards = new Object();
+
+
 
     /**
      * Constructor for testing.
@@ -43,6 +48,13 @@ public class Table {
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
+
+        //Initialize tokens
+        int PlayerSum = env.config.players;
+        tokens = new LinkedList<>();
+        for (int i = 0; i < PlayerSum; i++) {
+            tokens.add(new LinkedList<Integer>());
+        }
     }
 
     /**
@@ -112,10 +124,21 @@ public class Table {
         
         synchronized (lockSlotsCards) {
             // remove card from slot and vice versa
-            int card = slotToCard[slot];
-            slotToCard[slot] = null;
-            cardToSlot[card] = null;
-            env.ui.removeCard(slot);
+            if(slotToCard[slot] != null){
+                int card = slotToCard[slot];
+                slotToCard[slot] = null;
+                cardToSlot[card] = null;
+                env.ui.removeCard(slot);
+                
+
+                // //Remove all tokens from slot
+                // for(List<Integer> token :tokens ){
+                //     if(token.contains(slot)){
+                //         removeToken(tokens.indexOf(token), slot);
+                //     }
+                // }
+            }
+            
         }
     }
 
@@ -128,7 +151,12 @@ public class Table {
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
-        env.ui.placeToken(player, slot);
+        synchronized(lockSlotsCards){
+            env.ui.placeToken(player, slot);
+            tokens.get(player).add(slot);
+        }
+
+        
     }
     
 
@@ -141,13 +169,23 @@ public class Table {
     public boolean removeToken(int player, int slot) {
         try {
             Thread.sleep(env.config.tableDelayMillis);
-            env.ui.removeToken(player, slot);
         } catch (InterruptedException ignored) {return false;}
 
+        synchronized(lockSlotsCards){
+            env.ui.removeToken(player, slot);
+            int location = tokens.get(player).indexOf(slot);
+            if (location != -1 )
+                tokens.get(player).remove(location);
+        }
         return true;
         
     }
 
+    /**
+     * Returns the card in a slot
+     * @param slot
+     * @return card in slot
+     */
     public int getcardBySlot(int slot){
         synchronized (lockSlotsCards) {
             if(slotToCard[slot]==null){return -1;}
@@ -155,16 +193,70 @@ public class Table {
         }
     }
 
+
+    /**
+     * Removes all tokens of a player
+     * @param player
+     */
     protected void removeAllTokens(int player){
-        for(int i = 0; i < env.config.tableSize; i++){
-            removeToken(player, i);
+        synchronized(lockSlotsCards){}
+        for(int slot : tokens.get(player)){
+            env.ui.removeToken(player, slot);
+        }
+        tokens.get(player).clear();
+    }
+
+
+    /**
+     * Returns the number of tokens of a player
+     * @param player
+     * @return Number of tokens of a player
+     */
+    protected int getTokenSize(int player){
+        synchronized(lockSlotsCards){
+        return tokens.get(player).size();
         }
     }
 
-    protected void placeTokens(List<Integer> tokens, int player){
-        removeAllTokens(player);
-        for(int i = 0; i < tokens.size(); i++){
-            placeToken(player, tokens.get(i));
+    /**
+     * Returns a list of all tokens of a player
+     * @param player
+     * @return List of all tokens of a player
+     */
+    protected List<Integer> getTokens(int player){
+        synchronized(lockSlotsCards){
+        return tokens.get(player);
         }
     }
+    
+    /**
+     * Returns true if a player has a token on a slot
+     * @param player
+     * @param slot
+     * @return true if a player has a token on a slot
+     */
+    protected boolean isToken(int player, int slot){
+        synchronized(lockSlotsCards){
+        return tokens.get(player).contains(slot);
+        }
+    }
+ 
+    /**
+     * Removes all relevant tokens of all players and removes the card from the table 
+     * @param player
+     */
+    protected void pointToPlayer(int player){
+        synchronized(lockSlotsCards){
+        for (int i : tokens.get(player)){
+            env.ui.removeToken(player, i);
+            removeCard(i);
+            for(int j = 0; j<tokens.size(); j++){
+                if (j!=player && tokens.get(j).contains(i)){
+                    removeToken(j, i);
+                }
+            }
+        }
+        tokens.get(player).clear();
+    }
+    }   
 }

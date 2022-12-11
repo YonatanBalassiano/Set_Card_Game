@@ -83,8 +83,10 @@ public class Dealer implements Runnable {
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
+            shouldFinish=false;
         }
         announceWinners();
+        terminate();
         System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
     }
 
@@ -124,7 +126,7 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        toggleLock();
+        toggleLockOn();
         List<Integer> tableSlots = IntStream.rangeClosed(0, env.config.tableSize-1).boxed().collect(Collectors.toList());  
         Collections.shuffle(tableSlots);
         for(int i : tableSlots){
@@ -135,7 +137,7 @@ public class Dealer implements Runnable {
                 }
             }
         }
-        toggleLock();
+        toggleLockOff();
     }
 
     /**
@@ -161,6 +163,7 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
+        toggleLockOn();
         for(int i = 0; i<env.config.tableSize;i++){
             if(table.slotToCard[i]!=null){
                 deck.add(table.slotToCard[i]);
@@ -168,7 +171,6 @@ public class Dealer implements Runnable {
             }
         }
         for(Player player : players){
-            player.resetTokens();
             table.removeAllTokens(player.id);
         }
     }
@@ -220,16 +222,22 @@ public class Dealer implements Runnable {
     protected boolean isSet(int[] cards, Thread playerThread){
         synchronized(isSetQueueLock){
             isSetQueue.add(cards[3]);
-        } 
+        }
+
+        //TRY TO GET THE LOCK
+        synchronized(isSetQueueLock){
         while(isSetQueue.peek()!= cards[3]){
             try{isSetQueueLock.wait();}catch(Exception e){}
         }
+    }
+
+
         int[] tempCards = new int[cards.length-1];
         for(int i = 0; i<cards.length-1;i++){
             tempCards[i] = table.getcardBySlot(cards[i]);
         }
         boolean isSet = env.util.testSet(tempCards);
-        if(isSet){shouldFinish =shouldFinish();}
+        if(isSet){shouldFinish = shouldFinish();}
         return isSet;
     }
 
@@ -251,7 +259,7 @@ public class Dealer implements Runnable {
      * @param millis the time we freeze the player
      */
     public void setFreeze(long millis, Player player){
-        player.lock = true;
+        player.peneltyLock.set(true);
         long freezeTimeOut = System.currentTimeMillis() + millis;
         while(System.currentTimeMillis()<=freezeTimeOut){
             env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
@@ -259,22 +267,20 @@ public class Dealer implements Runnable {
             catch(Exception e){}
         }
         env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
-        player.lock=false;
+        player.peneltyLock.set(false);
     }
 
-    public void removeTokensToOtherPlayers(int slot, int id){
-        for (Player player : players){
-            if(player.id!=id){
-                table.removeToken(player.id,slot);
-                player.removeToken(slot);
-            }
-                
+
+    
+    public void toggleLockOn(){
+        for(Player player : players){
+            player.tableLock.set(true);
         }
     }
-    
-    public void toggleLock(){
+
+    public void toggleLockOff(){
         for(Player player : players){
-            player.lock = !player.lock;
+            player.tableLock.set(false);
         }
     }
 
