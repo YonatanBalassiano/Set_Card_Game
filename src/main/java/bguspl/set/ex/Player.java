@@ -73,7 +73,6 @@ public class Player implements Runnable {
      */
     private Dealer dealer;
 
-    private Object lockKeyPress = new Object();
     private AtomicBoolean keyLock = new AtomicBoolean(false);
 
 
@@ -148,12 +147,6 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
-                try {
-                    synchronized (this) {
-                        wait();
-                    }
-                } catch (InterruptedException ignored) {
-                }
                 int slot = (int) ((Math.random() * (12 - 0)));
                 keyPressed(slot);
             }
@@ -180,7 +173,7 @@ public class Player implements Runnable {
                 if (table.removeToken(id, slot))
                     tokens.remove(tokens.indexOf(slot));
             } else {
-                if (tokens.size() < 3) {
+                if (tokens.size() < 3 && table.getcardBySlot(slot)!= -1) {
                     tokens.add(slot);
                     table.placeToken(id, slot);
                     keyLock.set(true);

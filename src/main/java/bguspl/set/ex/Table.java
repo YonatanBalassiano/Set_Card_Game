@@ -150,6 +150,7 @@ public class Table {
 
     public int getcardBySlot(int slot){
         synchronized (lockSlotsCards) {
+            if(slotToCard[slot]==null){return -1;}
             return slotToCard[slot];
         }
     }

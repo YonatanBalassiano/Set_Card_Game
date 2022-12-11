@@ -124,6 +124,7 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
+        toggleLock();
         List<Integer> tableSlots = IntStream.rangeClosed(0, env.config.tableSize-1).boxed().collect(Collectors.toList());  
         Collections.shuffle(tableSlots);
         for(int i : tableSlots){
@@ -132,9 +133,9 @@ public class Dealer implements Runnable {
                     table.placeCard(deck.get(0),i);
                     deck.remove(deck.get(0));
                 }
-                try{Thread.sleep(env.config.tableDelayMillis);}catch(Exception e){}
             }
         }
+        toggleLock();
     }
 
     /**
@@ -178,24 +179,6 @@ public class Dealer implements Runnable {
     private void announceWinners() {
         int maxScore = 0;
         int maxSum = 0; 
-        //calculate the max score and how many players with that score
-        // for(Player player : players){
-        //     if(player.getScore()>maxScore){
-        //         maxScore = player.getScore();
-        //         maxSum =1;
-        //     }
-        //     if(player.getScore()==maxScore){
-        //         maxSum++;
-        //     }
-        // }
-
-        // //convert to int
-        // int[] temp = new int[maxSum];
-        // for(Player player : players){
-        //     if(player.getScore()==maxScore){
-        //         temp[--maxSum] = player.id;
-        //     }
-        // }
 
         
         if(players[0].getScore()==players[1].getScore()){
@@ -286,6 +269,12 @@ public class Dealer implements Runnable {
                 player.removeToken(slot);
             }
                 
+        }
+    }
+    
+    public void toggleLock(){
+        for(Player player : players){
+            player.lock = !player.lock;
         }
     }
 
