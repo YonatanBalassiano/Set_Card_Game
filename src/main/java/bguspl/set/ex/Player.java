@@ -1,9 +1,6 @@
 package bguspl.set.ex;
-
 import bguspl.set.Env;
-
 import java.util.concurrent.atomic.AtomicBoolean;
-
 
 /**
  * This class manages the players' threads and data
@@ -55,19 +52,25 @@ public class Player implements Runnable {
     private int score;
 
     /**
-     * the tokens that the player has collected.
+     * lock for penelty and point state
      */
-    // private volatile List<Integer> tokens;
     public AtomicBoolean peneltyLock = new AtomicBoolean(false);
+
+    /**
+     * lock for table cards change
+     */
     public AtomicBoolean tableLock = new AtomicBoolean(false);
 
+    /**
+     * lock for synctonize key press
+     */
+    private AtomicBoolean keyLock = new AtomicBoolean(false);
 
     /**
      * the dealer object
      */
     private Dealer dealer;
 
-    private AtomicBoolean keyLock = new AtomicBoolean(false);
 
 
     /**
@@ -86,7 +89,6 @@ public class Player implements Runnable {
         this.id = id;
         this.human = human;
         this.dealer = dealer;
-        // tokens = new LinkedList<Integer>();
     }
 
     /**
@@ -143,8 +145,6 @@ public class Player implements Runnable {
                 if(tableLock.get() == false){
                     int slot = (int) ((Math.random() * (env.config.tableSize)));
                     keyPressed(slot);
-                    // try{Thread.sleep(env.config.tableDelayMillis);}
-                    // catch (InterruptedException e) {e.printStackTrace();}
                 }
             }
             System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
@@ -198,6 +198,8 @@ public class Player implements Runnable {
 
     /**
      * Penalize a player and perform other related actions.
+     * @post - the player's score stays the same.
+     * @post - the player's key stroke disable for a while.
      */
     public void penalty() {
         System.out.println(Thread.currentThread().getName() + "penalty");
@@ -207,6 +209,7 @@ public class Player implements Runnable {
 
     /**
      * Returns the current score of the player.
+     * @return - the current score of the player.
      */
     public int getScore() {
         return score;

@@ -1,7 +1,5 @@
 package bguspl.set.ex;
-
 import bguspl.set.Env;
-
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,6 +50,9 @@ public class Dealer implements Runnable {
      */
     private Queue<Integer> isSetQueue;
 
+    /**
+     * level of difficulty
+     */
     private Level level;
 
     /**
@@ -59,12 +60,22 @@ public class Dealer implements Runnable {
      */
     private Object isSetQueueLock = new Object();
 
+    /**
+     * level of difficulty ENUM
+     */
     enum Level{
         EASY,
         MEDIUM,
         HIGH
     }
 
+    /**
+     * Creates a new dealer object.
+     *
+     * @param env the game environment object
+     * @param table the table object
+     * @param players the players
+     */
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
@@ -107,13 +118,13 @@ public class Dealer implements Runnable {
      */
     private void timerLoop() {
         boolean extraArgument = true;
-        
         while (!terminate && extraArgument && !shouldFinish) {
             sleepUntilWokenOrTimeout();
             boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
             updateTimerDisplay(warning);
             placeCardsOnTable();
             
+            //enum switch
             switch(level)
             {
                 case EASY:
@@ -217,7 +228,6 @@ public class Dealer implements Runnable {
     private void announceWinners() {
         int maxScore = 0;
         int maxSum = 0; 
-
         
         for(Player player : players){
             if(player.getScore()>maxScore){
@@ -284,8 +294,6 @@ public class Dealer implements Runnable {
             try{isSetQueueLock.wait();}catch(Exception e){}
         }
     }
-
-
         int[] tempCards = new int[cards.length-1];
         for(int i = 0; i<cards.length-1;i++){
             tempCards[i] = table.getcardBySlot(cards[i]);
@@ -297,7 +305,7 @@ public class Dealer implements Runnable {
 
     /**
      * synchronized method for isSet tests (fairly)
-     * 
+     * @post next object in the queue can try to check for Set
      */
     protected void unlockIsSet(){
         synchronized(isSetQueueLock){
@@ -325,13 +333,21 @@ public class Dealer implements Runnable {
     }
 
 
-    
+    /**
+     * lock all players from placing and removing tokens on the table
+     * @post all players are locked from placing and removing tokens on the table
+     */
     public void toggleLockOn(){
         for(Player player : players){
             player.tableLock.set(true);
         }
     }
 
+
+    /**
+     * unlock all players from placing and removing tokens on the table
+     * @post all players are unlocked from placing and removing tokens on the table
+     */
     public void toggleLockOff(){
         for(Player player : players){
             player.tableLock.set(false);
