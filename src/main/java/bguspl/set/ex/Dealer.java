@@ -6,13 +6,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import javax.management.Query;
-import javax.sound.midi.MidiChannel;
-import javax.swing.plaf.synth.SynthButtonUI;
+
 
 /**
  * This class manages the dealer's threads and data
@@ -55,10 +52,18 @@ public class Dealer implements Runnable {
      */
     private Queue<Integer> isSetQueue;
 
+    private Level level;
+
     /**
      * isSet queue lock
      */
     private Object isSetQueueLock = new Object();
+
+    enum Level{
+        EASY,
+        MEDIUM,
+        HIGH
+    }
 
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
@@ -66,6 +71,13 @@ public class Dealer implements Runnable {
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
         isSetQueue = new LinkedList<Integer>();
+
+        if(env.config.turnTimeoutMillis<0){
+            level = Level.EASY;
+        }else if(env.config.turnTimeoutMillis==0) {
+            level = Level.MEDIUM;}
+        else{
+            level = Level.HIGH;}
 
     }
 
@@ -94,11 +106,26 @@ public class Dealer implements Runnable {
      * The inner loop of the dealer thread that runs as long as the countdown did not time out.
      */
     private void timerLoop() {
-        while (!terminate && System.currentTimeMillis() < reshuffleTime && !shouldFinish) {
+        boolean extraArgument = true;
+        
+        while (!terminate && extraArgument && !shouldFinish) {
             sleepUntilWokenOrTimeout();
             boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
             updateTimerDisplay(warning);
             placeCardsOnTable();
+            
+            switch(level)
+            {
+                case EASY:
+                    extraArgument = table.isSetOnTable();
+                    break;
+                case MEDIUM:
+                    extraArgument = table.isSetOnTable();
+                    break;
+                case HIGH:
+                extraArgument = System.currentTimeMillis() < reshuffleTime;
+                    break;
+            }
         }
         System.out.printf("Info: Thread %s play.%n", Thread.currentThread().getName());
     }
@@ -155,8 +182,17 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        long secondTillTimeout = reshuffleTime - System.currentTimeMillis();
-        env.ui.setCountdown(secondTillTimeout, reset);
+        switch(level){
+            case EASY:
+                break;
+            case MEDIUM:
+                env.ui.setElapsed(System.currentTimeMillis() - reshuffleTime);
+                break;
+            case HIGH:
+                long secondTillTimeout = reshuffleTime - System.currentTimeMillis();
+                env.ui.setCountdown(secondTillTimeout, reset);
+                break;
+        }
     }
 
     /**
@@ -183,18 +219,27 @@ public class Dealer implements Runnable {
         int maxSum = 0; 
 
         
-        if(players[0].getScore()==players[1].getScore()){
-            int[] arr = {players[0].id,players[1].id};
-            env.ui.announceWinner(arr);
+        for(Player player : players){
+            if(player.getScore()>maxScore){
+                maxScore = player.getScore();
+            }
         }
-        else if(players[0].getScore()>players[1].getScore()){
-            int[] arr = {players[0].id};
-            env.ui.announceWinner(arr);
+
+        for(Player player : players){
+            if(player.getScore()==maxScore){
+                maxSum ++;
+            }
         }
-        else{
-            int[] arr = {players[1].id};
-            env.ui.announceWinner(arr);
+
+        int[] winners = new int[maxSum];
+        for(Player player : players){
+            if(player.getScore()==maxScore){
+                winners[maxSum-1] = player.id;
+                maxSum --;
+            }
         }
+
+        env.ui.announceWinner(winners);
     }
 
     /**
@@ -210,7 +255,16 @@ public class Dealer implements Runnable {
      * Reset the timer.
      */
     protected void ClockReset(){
-        reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+        switch(level){
+            case EASY:
+                break;
+            case MEDIUM:
+                reshuffleTime = System.currentTimeMillis();
+                break;
+            case HIGH:
+                reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+                break;
+        }
     }
 
     /**
@@ -221,7 +275,7 @@ public class Dealer implements Runnable {
      */
     protected boolean isSet(int[] cards, Thread playerThread){
         synchronized(isSetQueueLock){
-            isSetQueue.add(cards[3]);
+            isSetQueue.add(cards[cards.length-1]);
         }
 
         //TRY TO GET THE LOCK

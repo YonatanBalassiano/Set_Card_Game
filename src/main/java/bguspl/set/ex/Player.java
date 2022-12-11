@@ -2,16 +2,8 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
-import java.text.BreakIterator;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
 
-import javax.management.ObjectName;
-import javax.print.attribute.Size2DSyntax;
-import javax.xml.validation.Validator;
 
 /**
  * This class manages the players' threads and data
@@ -114,8 +106,8 @@ public class Player implements Runnable {
                     e.printStackTrace();
                 }
             }
-                if (table.getTokenSize(id) == 3){
-                        int[] cards = new int[4];
+                if (table.getTokenSize(id) == env.config.featureSize){
+                        int[] cards = new int[env.config.featureSize+1];
                         int index = 0;
                         for(int tempSlot : table.getTokens(id)){
                             cards[index] = tempSlot;
@@ -149,10 +141,10 @@ public class Player implements Runnable {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
                 if(tableLock.get() == false){
-                    int slot = (int) ((Math.random() * (12 - 0)));
+                    int slot = (int) ((Math.random() * (env.config.tableSize)));
                     keyPressed(slot);
-                    try{Thread.sleep(env.config.tableDelayMillis);}
-                    catch (InterruptedException e) {e.printStackTrace();}
+                    // try{Thread.sleep(env.config.tableDelayMillis);}
+                    // catch (InterruptedException e) {e.printStackTrace();}
                 }
             }
             System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
@@ -177,7 +169,7 @@ public class Player implements Runnable {
             if (table.isToken(id, slot)){
                 table.removeToken(id, slot);
             } else {
-                if (table.getTokenSize(id) < 3 && table.getcardBySlot(slot)!= -1) {
+                if (table.getTokenSize(id) < env.config.featureSize && table.getcardBySlot(slot)!= -1) {
                     table.placeToken(id, slot);
                     keyLock.set(true);
                 }

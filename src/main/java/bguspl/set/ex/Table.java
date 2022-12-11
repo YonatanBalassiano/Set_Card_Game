@@ -32,6 +32,8 @@ public class Table {
 
     protected final List<List<Integer>> tokens;
 
+    protected List<Integer>cardsOnTable;
+
     Object lockSlotsCards = new Object();
 
 
@@ -48,6 +50,7 @@ public class Table {
         this.env = env;
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
+        cardsOnTable = new LinkedList<Integer>();
 
         //Initialize tokens
         int PlayerSum = env.config.players;
@@ -110,6 +113,7 @@ public class Table {
             slotToCard[slot] = card;
             cardToSlot[card] = slot;
             env.ui.placeCard(card, slot);
+            cardsOnTable.add(card);
         }
     }
 
@@ -129,14 +133,7 @@ public class Table {
                 slotToCard[slot] = null;
                 cardToSlot[card] = null;
                 env.ui.removeCard(slot);
-                
-
-                // //Remove all tokens from slot
-                // for(List<Integer> token :tokens ){
-                //     if(token.contains(slot)){
-                //         removeToken(tokens.indexOf(token), slot);
-                //     }
-                // }
+                cardsOnTable.remove(cardsOnTable.indexOf(card));
             }
             
         }
@@ -259,4 +256,14 @@ public class Table {
         tokens.get(player).clear();
     }
     }   
+
+    protected boolean isSetOnTable(){
+        synchronized(cardsOnTable){
+            return env.util.findSets(cardsOnTable,1).size()>0;
+    }
+        
+    }
+
+
+
 }
