@@ -68,6 +68,21 @@ public class Table {
         }
     }
 
+    /*
+     * Constructor for testing.
+     */
+    public Table(Env env, Integer[] slotToCard, Integer[] cardToSlot, List<List<Integer>> tokens) {
+
+        this.env = env;
+        this.slotToCard = slotToCard;
+        this.cardToSlot = cardToSlot;
+        cardsOnTable = new LinkedList<Integer>();
+
+        // Initialize tokens list
+        int PlayerSum = env.config.players;
+        this.tokens = tokens;
+    }
+
     /**
      * Constructor for actual usage.
      *

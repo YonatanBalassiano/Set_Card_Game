@@ -7,6 +7,7 @@ import bguspl.set.Util;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -18,6 +19,7 @@ class TableTest {
     Table table;
     private Integer[] slotToCard;
     private Integer[] cardToSlot;
+    private List<List<Integer>> tokens;
 
     @BeforeEach
     void setUp() {
@@ -35,8 +37,11 @@ class TableTest {
         slotToCard = new Integer[config.tableSize];
         cardToSlot = new Integer[config.deckSize];
 
+        tokens = new LinkedList<>();
+
+
         Env env = new Env(logger, config, new MockUserInterface(), new MockUtil());
-        table = new Table(env, slotToCard, cardToSlot);
+        table = new Table(env, slotToCard, cardToSlot, tokens);
     }
 
     private int fillSomeSlots() {
@@ -53,6 +58,19 @@ class TableTest {
             slotToCard[i] = i;
             cardToSlot[i] = i;
         }
+    }
+
+    private void fillSomeTokens(){
+        for (int i = 0; i < 3; ++i) {
+            tokens.add(new LinkedList<Integer>());
+        }
+        table.placeToken(0,1);
+        table.placeToken(0,2);
+        table.placeToken(1,3);
+        table.placeToken(1,4);
+        table.placeToken(2,5);
+        table.placeToken(2,6);
+
     }
 
     private void placeSomeCardsAndAssert() {
@@ -93,6 +111,25 @@ class TableTest {
     void placeCard_AllSlotsAreFilled() {
         fillAllSlots();
         placeSomeCardsAndAssert();
+    }
+
+    @Test
+    void removeAllTokens_SomeTokensArePlaced() {
+            
+            fillSomeTokens();
+            table.removeAllTokens(0);
+    
+            assertEquals(0,tokens.get(0).size() );
+
+    }
+
+    @Test
+    void placeToken_SomeTokensArePlaced() {
+            
+            fillSomeTokens();
+            table.placeToken(2, 8);
+    
+            assertEquals(true,tokens.get(2).contains(8) );
     }
 
     static class MockUserInterface implements UserInterface {

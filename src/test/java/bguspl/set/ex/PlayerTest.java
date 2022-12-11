@@ -11,6 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,6 +36,11 @@ class PlayerTest {
     @Mock
     private Logger logger;
 
+    private List<List<Integer>> tokens;
+
+
+
+
     void assertInvariants() {
         assertTrue(player.id >= 0);
         assertTrue(player.getScore() >= 0);
@@ -45,7 +52,11 @@ class PlayerTest {
         Env env = new Env(logger, new Config(logger, ""), ui, util);
         player = new Player(env, dealer, table, 0, false);
         assertInvariants();
+        tokens = new LinkedList<>();
+        table = new Table(env, new Integer[env.config.tableSize], new Integer[env.config.deckSize]);
     }
+
+
 
     @AfterEach
     void tearDown() {
@@ -69,5 +80,17 @@ class PlayerTest {
 
         // check that ui.setScore was called with the player's id and the correct score
         verify(ui).setScore(eq(player.id), eq(expectedScore));
+    }
+
+    @Test
+    void keyPressed(){
+        fillSomeSlots();
+        fillSomeTokens();
+        player.keyPressed(0);
+        player.keyPressed(1);
+
+        assertEquals(true, table.isToken(player.id, 1));
+
+
     }
 }
