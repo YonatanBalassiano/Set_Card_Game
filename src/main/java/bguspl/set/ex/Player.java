@@ -127,8 +127,8 @@ public class Player implements Runnable {
                 }
                 keyLock.set(false);
             }
-        if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
-        System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
+        if (!human) try { aiThread.join(); } catch (InterruptedException e) {e.printStackTrace();}
+        System.out.printf("Info: Thread %s out terminated.%n", Thread.currentThread().getName());
     }
 
     /**
@@ -147,7 +147,7 @@ public class Player implements Runnable {
                     keyPressed(slot);
                 }
             }
-            System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
+            System.out.printf("Info: Thread %s in terminated.%n", Thread.currentThread().getName());
         }, "computer-" + id);
         aiThread.start();
     }

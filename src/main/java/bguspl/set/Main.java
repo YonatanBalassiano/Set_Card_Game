@@ -12,6 +12,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.logging.*;
 
+import javax.sound.midi.Soundbank;
+
 /**
  * This class contains the game's main function.
  */
@@ -44,7 +46,8 @@ public class Main {
         Thread dealerThread = new Thread(dealer, "dealer");
         dealerThread.start();
 
-        try {dealerThread.join();} catch (InterruptedException ignored) {}
+        try {
+            dealerThread.join();} catch (InterruptedException E) {E.printStackTrace();}
         env.logger.log(Level.INFO, "Thread " + Thread.currentThread().getName() + " terminated.");
         for(Handler h:env.logger.getHandlers())
             h.close();

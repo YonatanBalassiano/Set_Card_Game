@@ -145,8 +145,12 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {  
-        for(Player player : players){
-            player.terminate();
+        for(int i = players.length-1; i>=0; i--){
+            players[i].terminate();
+        }
+
+        for(Player p : players){
+            try{p.playerThread.join();} catch (InterruptedException e) {e.printStackTrace();}
         }
         terminate = true;
     }
@@ -256,6 +260,7 @@ public class Dealer implements Runnable {
      * Start the threads of the players.
      */
     private void startPlayersThreads() {
+
         for (Player player : players) {
             new Thread(player,"Player"+player.id).start();
         }
