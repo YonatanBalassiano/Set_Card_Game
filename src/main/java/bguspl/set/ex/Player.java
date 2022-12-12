@@ -1,17 +1,6 @@
 package bguspl.set.ex;
-
 import bguspl.set.Env;
-
-import java.text.BreakIterator;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-
-import javax.management.ObjectName;
-import javax.print.attribute.Size2DSyntax;
-import javax.xml.validation.Validator;
 
 /**
  * This class manages the players' threads and data
@@ -63,17 +52,25 @@ public class Player implements Runnable {
     private int score;
 
     /**
-     * the tokens that the player has collected.
+     * lock for penelty and point state
      */
-    private volatile List<Integer> tokens;
-    public volatile boolean lock = false;
+    public AtomicBoolean peneltyLock = new AtomicBoolean(false);
+
+    /**
+     * lock for table cards change
+     */
+    public AtomicBoolean tableLock = new AtomicBoolean(false);
+
+    /**
+     * lock for synctonize key press
+     */
+    private AtomicBoolean keyLock = new AtomicBoolean(false);
 
     /**
      * the dealer object
      */
     private Dealer dealer;
 
-    private AtomicBoolean keyLock = new AtomicBoolean(false);
 
 
     /**
@@ -92,7 +89,6 @@ public class Player implements Runnable {
         this.id = id;
         this.human = human;
         this.dealer = dealer;
-        tokens = new LinkedList<Integer>();
     }
 
     /**
@@ -112,17 +108,16 @@ public class Player implements Runnable {
                     e.printStackTrace();
                 }
             }
-                System.out.println(tokens.size());
-                if (tokens.size() == 3){
-                        int[] cards = new int[tokens.size()+1];
+                if (table.getTokenSize(id) == env.config.featureSize){
+                        int[] cards = new int[env.config.featureSize+1];
                         int index = 0;
-                        for(int tempSlot : tokens){
+                        for(int tempSlot : table.getTokens(id)){
                             cards[index] = tempSlot;
                             index ++;
                         }
                         cards[3] = id;
                         System.out.println(Thread.currentThread().getName());
-                        boolean isSet = dealer.isSet(cards, playerThread);
+                        boolean isSet = dealer.isSet(cards);
                         if(isSet){
                             point();
                         }
@@ -147,8 +142,10 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
             while (!terminate) {
-                int slot = (int) ((Math.random() * (12 - 0)));
-                keyPressed(slot);
+                if(tableLock.get() == false){
+                    int slot = (int) ((Math.random() * (env.config.tableSize)));
+                    keyPressed(slot);
+                }
             }
             System.out.printf("Info: Thread %s terminated.%n", Thread.currentThread().getName());
         }, "computer-" + id);
@@ -168,13 +165,11 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        if (!lock) {
-            if (tokens.contains(slot)) {
-                if (table.removeToken(id, slot))
-                    tokens.remove(tokens.indexOf(slot));
+        if (peneltyLock.get() == false) {
+            if (table.isToken(id, slot)){
+                table.removeToken(id, slot);
             } else {
-                if (tokens.size() < 3 && table.getcardBySlot(slot)!= -1) {
-                    tokens.add(slot);
+                if (table.getTokenSize(id) < env.config.featureSize && table.getcardBySlot(slot)!= -1) {
                     table.placeToken(id, slot);
                     keyLock.set(true);
                 }
@@ -191,15 +186,10 @@ public class Player implements Runnable {
     public void point() {
         System.out.println(Thread.currentThread().getName() + "point");
 
-        for (int i : tokens) {
-            table.removeToken(id, i);
-            table.removeCard(i);
-            dealer.removeTokensToOtherPlayers(i, id);
-        }
+        table.pointToPlayer(id);
+
         env.ui.setScore(id, ++score);
         dealer.setFreeze(env.config.pointFreezeMillis, this);
-
-        tokens.clear();
         dealer.ClockReset();
 
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
@@ -208,6 +198,8 @@ public class Player implements Runnable {
 
     /**
      * Penalize a player and perform other related actions.
+     * @post - the player's score stays the same.
+     * @post - the player's key stroke disable for a while.
      */
     public void penalty() {
         System.out.println(Thread.currentThread().getName() + "penalty");
@@ -217,28 +209,12 @@ public class Player implements Runnable {
 
     /**
      * Returns the current score of the player.
+     * @return - the current score of the player.
      */
     public int getScore() {
         return score;
     }
 
-    /**
-     * This method is called when the set has been done.
-     */
-    public void resetTokens() {
-        tokens.clear();
-    }
 
-    /**
-     * This method is called when a key is released.
-     * 
-     * @param slot
-     */
-    public void removeToken(int slot) {
-        int index = tokens.indexOf(slot);
-        if (index != -1) {
-            tokens.remove(index);
-        }
-    }
 
 }
