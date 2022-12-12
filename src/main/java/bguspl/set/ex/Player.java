@@ -117,7 +117,7 @@ public class Player implements Runnable {
                         }
                         cards[3] = id;
                         System.out.println(Thread.currentThread().getName());
-                        boolean isSet = dealer.isSet(cards, playerThread);
+                        boolean isSet = dealer.isSet(cards);
                         if(isSet){
                             point();
                         }

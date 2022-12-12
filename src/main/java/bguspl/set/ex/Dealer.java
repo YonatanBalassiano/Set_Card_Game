@@ -283,7 +283,7 @@ public class Dealer implements Runnable {
      * @param cards the cards to check.
      * @return true iff the cards form a set.
      */
-    protected boolean isSet(int[] cards, Thread playerThread){
+    protected boolean isSet(int[] cards){
         synchronized(isSetQueueLock){
             isSetQueue.add(cards[cards.length-1]);
         }
@@ -354,5 +354,16 @@ public class Dealer implements Runnable {
         }
     }
 
+
+
+    //test purpuses only
+    public long getReshuffleTime(){
+        return reshuffleTime;
+    }
+
+    //test purpuses only
+    public void placeCardForTest(int id, int slot){
+        table.placeCard(id, slot);
+    }
 }
 
