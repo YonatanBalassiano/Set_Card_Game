@@ -63,6 +63,18 @@ public class Dealer implements Runnable {
     private Object isSetQueueLock = new Object();
 
     /**
+     * represents the number of milliseconds in a second
+     */
+    private final long SECOND = 1000;
+
+    /**
+     * represent the number of milliseconds in a 0.1 second
+     */
+    private final long TEN_MILL = 10;
+
+    
+
+    /**
      * level of difficulty ENUM
      */
     enum Level{
@@ -153,11 +165,6 @@ public class Dealer implements Runnable {
             players[i].keyLockOff();
             try{players[i].playerThread.join();}catch(InterruptedException e){e.printStackTrace();}
         }
-        // for(Player player : players){
-        //     player.terminate();
-        //     player.keyLockOff();
-        //     try{player.playerThread.join();}catch(InterruptedException e){e.printStackTrace();}
-        // }
 
         terminate = true;
     }
@@ -193,7 +200,7 @@ public class Dealer implements Runnable {
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
     private void sleepUntilWokenOrTimeout(boolean warning) {
-        long sleepTime = warning ? 10 : (reshuffleTime - System.currentTimeMillis()) % 1000;
+        long sleepTime = warning ? TEN_MILL : (reshuffleTime - System.currentTimeMillis()) % SECOND;
         try {
             Thread.sleep(sleepTime);
                 } catch (InterruptedException ignore) {
@@ -337,7 +344,7 @@ public class Dealer implements Runnable {
         while(System.currentTimeMillis()<=freezeTimeOut){
             env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
 
-            long sleepTime = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis ? 10 : (reshuffleTime - System.currentTimeMillis()) % 1000;
+            long sleepTime = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis ? TEN_MILL : (reshuffleTime - System.currentTimeMillis()) % SECOND;
             try{player.playerThread.sleep(sleepTime);}
             catch(Exception e){}
         }
