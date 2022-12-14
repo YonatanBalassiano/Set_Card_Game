@@ -215,6 +215,10 @@ public class Player implements Runnable {
         return score;
     }
 
+    public void keyLockOff(){
+        keyLock.set(true);
+    }
+
 
 
 }
