@@ -104,19 +104,18 @@ public class Player implements Runnable {
             while(keyLock.get() == false){
                 try {
                     Thread.sleep(env.config.tableDelayMillis);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                } catch (InterruptedException ignored) {}
             }
                 if (table.getTokenSize(id) == env.config.featureSize){
                         int[] cards = new int[env.config.featureSize+1];
                         int index = 0;
+                        synchronized(table.lockSlotsCards){
                         for(int tempSlot : table.getTokens(id)){
                             cards[index] = tempSlot;
                             index ++;
+                            }
                         }
                         cards[3] = id;
-                        System.out.println(Thread.currentThread().getName());
                         boolean isSet = dealer.isSet(cards);
                         if(isSet){
                             point();
@@ -184,10 +183,7 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        System.out.println(Thread.currentThread().getName() + "point");
-
         table.pointToPlayer(id);
-
         env.ui.setScore(id, ++score);
         dealer.setFreeze(env.config.pointFreezeMillis, this);
         dealer.ClockReset();
@@ -202,7 +198,6 @@ public class Player implements Runnable {
      * @post - the player's key stroke disable for a while.
      */
     public void penalty() {
-        System.out.println(Thread.currentThread().getName() + "penalty");
         dealer.unlockIsSet();
         dealer.setFreeze(env.config.penaltyFreezeMillis, this);
     }

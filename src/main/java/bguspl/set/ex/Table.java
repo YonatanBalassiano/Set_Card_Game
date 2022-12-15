@@ -77,9 +77,7 @@ public class Table {
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
         cardsOnTable = new LinkedList<Integer>();
-
         // Initialize tokens list
-        int PlayerSum = env.config.players;
         this.tokens = tokens;
     }
 
@@ -230,11 +228,11 @@ public class Table {
      */
     protected void removeAllTokens(int player) {
         synchronized (lockSlotsCards) {
-        }
         for (int slot : tokens.get(player)) {
             env.ui.removeToken(player, slot);
         }
         tokens.get(player).clear();
+        }
     }
 
     /**
