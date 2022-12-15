@@ -1,5 +1,7 @@
 package bguspl.set.ex;
 import bguspl.set.Env;
+
+import java.nio.ShortBuffer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -61,6 +63,18 @@ public class Dealer implements Runnable {
     private Object isSetQueueLock = new Object();
 
     /**
+     * represents the number of milliseconds in a second
+     */
+    private final long SECOND = 1000;
+
+    /**
+     * represent the number of milliseconds in a 0.1 second
+     */
+    private final long TEN_MILL = 10;
+
+    
+
+    /**
      * level of difficulty ENUM
      */
     enum Level{
@@ -100,11 +114,12 @@ public class Dealer implements Runnable {
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
         startPlayersThreads();        
         while (!shouldFinish()) {
-            ClockReset();
             Collections.shuffle(deck);
             placeCardsOnTable();
+            ClockReset();
             timerLoop();
-            updateTimerDisplay(false);
+            boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
+            updateTimerDisplay(warning);
             removeAllCardsFromTable();
             shouldFinish=false;
         }
@@ -119,9 +134,9 @@ public class Dealer implements Runnable {
     private void timerLoop() {
         boolean extraArgument = true;
         while (!terminate && extraArgument && !shouldFinish) {
-            sleepUntilWokenOrTimeout();
             boolean warning = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis;
             updateTimerDisplay(warning);
+            sleepUntilWokenOrTimeout(warning);
             placeCardsOnTable();
             
             //enum switch
@@ -134,7 +149,7 @@ public class Dealer implements Runnable {
                     extraArgument = table.isSetOnTable();
                     break;
                 case HIGH:
-                extraArgument = System.currentTimeMillis() < reshuffleTime;
+                    extraArgument = System.currentTimeMillis() < reshuffleTime;
                     break;
             }
         }
@@ -145,9 +160,12 @@ public class Dealer implements Runnable {
      * Called when the game should be terminated due to an external event.
      */
     public void terminate() {  
-        for(Player player : players){
-            player.terminate();
+        for(int i = players.length-1;i>0;i--){
+            players[i].terminate();
+            players[i].keyLockOff();
+            try{players[i].playerThread.join();}catch(InterruptedException e){e.printStackTrace();}
         }
+
         terminate = true;
     }
 
@@ -181,11 +199,11 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private void sleepUntilWokenOrTimeout() {
+    private void sleepUntilWokenOrTimeout(boolean warning) {
+        long sleepTime = warning ? TEN_MILL : (reshuffleTime - System.currentTimeMillis()) % SECOND;
         try {
-            Thread.sleep(env.config.tableDelayMillis);
-                } catch (InterruptedException e) {
-            // ignore
+            Thread.sleep(sleepTime);
+                } catch (InterruptedException ignore) {
         }
     }
 
@@ -200,8 +218,8 @@ public class Dealer implements Runnable {
                 env.ui.setElapsed(System.currentTimeMillis() - reshuffleTime);
                 break;
             case HIGH:
-                long secondTillTimeout = reshuffleTime - System.currentTimeMillis();
-                env.ui.setCountdown(secondTillTimeout, reset);
+                long millisTillTimeout = Math.max(reshuffleTime - System.currentTimeMillis(),0);
+;                env.ui.setCountdown(millisTillTimeout, reset);
                 break;
         }
     }
@@ -325,7 +343,9 @@ public class Dealer implements Runnable {
         long freezeTimeOut = System.currentTimeMillis() + millis;
         while(System.currentTimeMillis()<=freezeTimeOut){
             env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());
-            try{player.playerThread.sleep(env.config.tableDelayMillis);}
+
+            long sleepTime = System.currentTimeMillis() >= reshuffleTime - env.config.turnTimeoutWarningMillis ? TEN_MILL : (reshuffleTime - System.currentTimeMillis()) % SECOND;
+            try{player.playerThread.sleep(sleepTime);}
             catch(Exception e){}
         }
         env.ui.setFreeze(player.id, freezeTimeOut - System.currentTimeMillis());

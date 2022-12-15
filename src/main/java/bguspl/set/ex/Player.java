@@ -216,5 +216,15 @@ public class Player implements Runnable {
     }
 
 
+    /**
+     * open the KeyLock of the player
+     * used only when application terminated
+     * @post - the player's lock is open
+     */
+    public void keyLockOff(){
+        keyLock.set(true);
+    }
+
+
 
 }
