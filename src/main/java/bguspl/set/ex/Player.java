@@ -99,31 +99,30 @@ public class Player implements Runnable {
         playerThread = Thread.currentThread();
         System.out.printf("Info: Thread %s starting.%n", Thread.currentThread().getName());
         if (!human) createArtificialIntelligence();
-        
         while (!terminate) {
             while(keyLock.get() == false){
                 try {
                     Thread.sleep(env.config.tableDelayMillis);
                 } catch (InterruptedException ignored) {}
             }
+                boolean isSet = false;
                 if (table.getTokenSize(id) == env.config.featureSize){
-                        int[] cards = new int[env.config.featureSize+1];
-                        int index = 0;
-                        synchronized(table.lockSlotsCards){
-                        for(int tempSlot : table.getTokens(id)){
-                            cards[index] = tempSlot;
-                            index ++;
-                            }
-                        }
-                        cards[3] = id;
-                        boolean isSet = dealer.isSet(cards);
-                        if(isSet){
-                            point();
-                        }
-                        else{
-                            penalty();
-                        }
+                    synchronized(table.lockSlotsCards){
+
+                        tableLock.set(true);
+                        peneltyLock.set(true);
+                        isSet = dealer.isSet(id);
+                    }
+                    if(isSet){
+                        point();
+                    }
+                    else{
+                        penalty();
+                    }  
                 }
+            
+                peneltyLock.set(false);
+                tableLock.set(false);
                 keyLock.set(false);
             }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
@@ -183,7 +182,6 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        table.pointToPlayer(id);
         env.ui.setScore(id, ++score);
         dealer.setFreeze(env.config.pointFreezeMillis, this);
         dealer.ClockReset();
@@ -206,7 +204,7 @@ public class Player implements Runnable {
      * Returns the current score of the player.
      * @return - the current score of the player.
      */
-    public int getScore() {
+    public int score() {
         return score;
     }
 

@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 /**
@@ -59,7 +60,6 @@ public class Table {
         this.slotToCard = slotToCard;
         this.cardToSlot = cardToSlot;
         cardsOnTable = new LinkedList<Integer>();
-
         // Initialize tokens list
         int PlayerSum = env.config.players;
         tokens = new LinkedList<>();
@@ -299,10 +299,19 @@ public class Table {
      * @return true if there is a set on the table
      */
     protected boolean isSetOnTable() {
-        synchronized (cardsOnTable) {
+        synchronized (lockSlotsCards) {
             return env.util.findSets(cardsOnTable, 1).size() > 0;
         }
+    }
 
+    protected boolean isAllCardsOnTable(int[] cards){
+        synchronized(lockSlotsCards){
+        for(int card : cards){
+            if(cardsOnTable.indexOf(card) == -1)
+                return false;
+        } 
+    }
+        return true;
     }
 
 }
