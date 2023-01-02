@@ -12,6 +12,7 @@ Supply the main thread that runs the table logics, the main thread that runs the
 # Main features 
 1.	Use locks and atomic variables to manage the threads 
 2.	Use synchronization concepts for a "Fair" game
+3.	Fully support human players and computer players
 
 
 # Screen Shots
